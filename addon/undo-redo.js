@@ -1,4 +1,5 @@
 import Ember from 'ember';
+const { on, get, set } = Ember;
 
 export default Ember.Mixin.create({
   isUndoing: false,
@@ -6,6 +7,22 @@ export default Ember.Mixin.create({
   undoStackLimit: 10,
   redoStack: Ember.A([]),
   undoStack: Ember.A([]),
+
+  _initialUndoState: null,
+  _undo_setup: on('ready', function() {
+    this._updateInitialUndoState(-1);
+  }),
+
+  _updateInitialUndoState(idx) {
+    if(!idx) {
+      idx = parseInt(get(this, '_initialUndoState.index'));
+    }
+
+    set(this, '_initialUndoState', {
+      index: idx + 1,
+      snapshot: this._internalModel.createSnapshot()
+    });
+  },
 
   checkpoint(models) {
     var actionType = 'update';
@@ -21,14 +38,28 @@ export default Ember.Mixin.create({
     if(models.length) {
       var changedItems = Ember.A();
       models.forEach(function(item) {
-        if(item.get('isNew')) {
-          actionType = 'create';
+        var changedAttrs = item.changedAttributes();
+
+        if(get(item, 'isNew')) {
+          var initStateIndex = get(item, '_initialUndoState.index');
+          if(initStateIndex === 0) {
+            actionType = 'create';
+          }
+
+          var attrs = get(this, '_initialUndoState.snapshot._attributes');
+          if(Ember.isPresent(attrs)) {
+            Object.keys(attrs).forEach(function(k) {
+              var value = attrs[k];
+              changedAttrs[k][0] = value;
+            });
+          }
+
+          this._updateInitialUndoState();
         }
-        else if(item.get('isDeleted')) {
+        else if(get(item, 'isDeleted')) {
           actionType = 'delete';
         }
 
-        var changedAttrs = item.changedAttributes();
         var isCreateDelete = Ember.A(['create', 'delete']).contains(actionType);
         if(isCreateDelete) {
           changedAttrs = item.toJSON();
@@ -51,16 +82,20 @@ export default Ember.Mixin.create({
             action: actionType,
             actionTaken: actionTaken,
             actionText: actionText,
-            attributes: {}
+            attributes: {},
+            snapshot: item._internalModel.createSnapshot()
           };
 
-          var lastUndo = this.get('undoStack.firstObject');
+          let lastUndo = this.get('undoStack.firstObject');
           if(actionType === 'update' && Ember.isPresent(lastUndo) && lastUndo.length === 1) {
             var lastUndoObject = lastUndo[0];
-            var lastObjectAttributes = lastUndoObject.attributes;
-            Object.keys(changedAttrs).forEach(function(k) {
+            var lastSnapshotAttributes = lastUndoObject.snapshot._attributes;
+            var objectKeys = Object.keys(changedAttrs);
+
+            for(var i = 0; i < objectKeys.length; i++) {
+              var k = objectKeys[i];
               var currentVal = changedAttrs[k];
-              var lastVal = lastObjectAttributes[k];
+              var lastVal = lastSnapshotAttributes[k];
               if(Array.isArray(currentVal)) {
                 currentVal = currentVal[1];
               }
@@ -71,11 +106,18 @@ export default Ember.Mixin.create({
               if(currentVal === lastVal) {
                 delete changedAttrs[k];
               }
-            });
+              else if(Ember.isPresent(lastVal)) {
+                if(Array.isArray(changedAttrs[k])) {
+                  changedAttrs[k][0] = lastVal;
+                }
+              }
+            }
           }
 
-          changes['attributes'] = changedAttrs;
-          changedItems.pushObject(changes);
+          if(Object.keys(changedAttrs).length) {
+            changes['attributes'] = changedAttrs;
+            changedItems.pushObject(changes);
+          }
         }
       }.bind(this));
 
@@ -92,7 +134,6 @@ export default Ember.Mixin.create({
 
         /* Clear redo settings if something new happened */
         this.get('redoStack').clear();
-        // this.set('redoStack', Ember.A([]));
       }
     }
   },
@@ -185,23 +226,12 @@ export default Ember.Mixin.create({
         if(Ember.isPresent(item)) {
           var numKey = (replaceType === 'redoStack') ? 1 : 0;
           var attrs = {};
+
           for(var k in attributes) {
             var value = attributes[k][numKey];
             attrs[k] = value;
             item.set(k, value);
           }
-
-          this.get('store').push({
-            data: {
-              type: type,
-              id: id,
-              attributes: attrs
-            }
-          });
-
-          // item._internalModel.send('willCommit');
-          // item._internalModel._attributes = {};
-          // item._internalModel.send('didCommit');
         }
       }
     }
@@ -235,18 +265,39 @@ export default Ember.Mixin.create({
     if((action === 'create' && key === 'redoStack') || (action === 'delete' && key === 'undoStack')) {
       attributes.id = id;
       var record = this.get('store').peekRecord('dog', id);
+
       if(Ember.isPresent(record)) {
         record.transitionTo('loaded.saved');
       }
       else {
-        record = this.get('store').createRecord(type, attributes);
-        promise = record.save();
+        if(Ember.isPresent(id)) {
+          record = this.get('store').createRecord(type, attributes);
+          promise = record.save();
+        }
+        else {
+          historyItem.snapshot._internalModel.rollbackAttributes();
+          record = historyItem.snapshot._internalModel.record;
+          record.transitionTo('loaded.created.uncommitted');
+
+          var attrs = historyItem.snapshot._attributes;
+          var attrKeys = Object.keys(attrs);
+          for(var i = 0; i < attrKeys.length; i++) {
+            var k = attrKeys[i];
+            var value = attrs[k];
+            record.set(k, value);
+          }
+        }
       }
     }
     else {
       if(Ember.isPresent(item)) {
-        item.transitionTo('loaded.saved');
-        promise = item.destroyRecord();
+        if(item.get('isNew')) {
+          item.deleteRecord();
+        }
+        else {
+          item.transitionTo('loaded.saved');
+          promise = item.destroyRecord();
+        }
       }
     }
     return promise;
