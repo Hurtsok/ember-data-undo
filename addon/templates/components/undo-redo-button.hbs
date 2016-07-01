@@ -1,0 +1,18 @@
+<button {{action "revert"}} class="btn btn-secondary btn-add split-btn-left">
+  {{type}}
+</button>
+
+<button class="btn btn-secondary btn-add split-btn-right {{hasOneItem:only-one}}" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+  Down Arrow
+</button>
+
+<ul class="dropdown-menu list-items">
+  {{#each stackItems as |items index|}}
+    <li>
+      Item
+    <!-- undo-redo-record items=items index=index revertToIndex="revert" -->
+    </li>
+  {{/each}}
+</ul>
+
+{{yield}}
