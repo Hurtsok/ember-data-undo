@@ -1,0 +1,1 @@
+export { default } from 'ember-data-undo/components/undo-redo-record';

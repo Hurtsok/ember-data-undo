@@ -9,10 +9,7 @@
 <ul class="dropdown-menu list-items">
   {{#each stackItems as |items index|}}
     <li>
-      Item
-    <!-- undo-redo-record items=items index=index revertToIndex="revert" -->
+      {{undo-redo-record items=items index=index revertToIndex="revert"}}
     </li>
   {{/each}}
 </ul>
-
-{{yield}}
