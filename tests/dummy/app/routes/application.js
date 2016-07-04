@@ -10,26 +10,53 @@ export default Ember.Route.extend({
     };
 
     let dog = this.store.createRecord('dog', params);
+    dog.checkpoint();
     return dog.save();
   },
 
   actions: {
     dirty(prop) {
+      let model = get(this, 'currentModel');
+      if(get(model, 'isDeleted')) {
+        Ember.Logger.warn('Cannot assign attribute to deleted model.');
+        return;
+      }
+
+      var val = '';
+
       if(!prop) {
         let props = Ember.A(['name', 'age']);
         const randomIdx = Math.floor(Math.random() * props.length);
         prop = props[randomIdx];
       }
 
-      let val = Math.random().toString(36).substring(7);
+      switch(prop) {
+        case 'age':
+          val = Math.round(Math.random()*100);
+          break;
+        case 'name':
+          let names = Ember.A(['Jill', 'Ryan', 'Joe', 'Clayton', 'Dave', 'X']);
+          let randomNameIdx = Math.floor(Math.random() * names.length);
+          val = names[randomNameIdx];
+          break;
+        default:
+          val = Math.round(Math.random()*100);
+          break;
+      }
 
-      let model = get(this, 'currentModel');
       set(model, prop, val);
     },
 
     checkpoint() {
       let model = get(this, 'currentModel');
       model.checkpoint();
+    },
+
+    destroyModel() {
+      let model = get(this, 'currentModel');
+      model.deleteRecord();
+      model.checkpoint();
+      model.save();
     }
   }
 });

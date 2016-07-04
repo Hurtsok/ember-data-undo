@@ -1,5 +1,5 @@
 import Ember from 'ember';
-const { on, get, set } = Ember;
+const { on, get, set, isPresent, isEmpty } = Ember;
 
 export default Ember.Mixin.create({
   isUndoing: false,
@@ -31,7 +31,7 @@ export default Ember.Mixin.create({
       models = Ember.A([this]);
     }
 
-    if(Ember.isEmpty(models.length)) {
+    if(isEmpty(models.length)) {
       models = Ember.A([models]);
     }
 
@@ -42,7 +42,7 @@ export default Ember.Mixin.create({
 
         if(get(item, 'isNew')) {
           var initStateIndex = get(item, '_initialUndoState.index');
-          if(initStateIndex === 0) {
+          if(!initStateIndex || initStateIndex === 0) {
             actionType = 'create';
           }
 
@@ -70,18 +70,12 @@ export default Ember.Mixin.create({
           });
         }
 
-        var changeAction = this.getChangeAction(changedAttrs, actionType);
-        var actionTaken = changeAction.key;
-        var actionText = changeAction.text;
-
         if(Object.keys(changedAttrs).length) {
           var changes = {
             id: item.get('id'),
             type: item.get('constructor.modelName'),
             descriptor: item.get('undoDescriptor'),
             action: actionType,
-            actionTaken: actionTaken,
-            actionText: actionText,
             attributes: {},
             snapshot: item._internalModel.createSnapshot()
           };
@@ -115,7 +109,10 @@ export default Ember.Mixin.create({
           }
 
           if(Object.keys(changedAttrs).length) {
-            changes['attributes'] = changedAttrs;
+            var changeAction = this.undoActionTaken(changedAttrs, actionType);
+            changes.attributes = changedAttrs;
+            changes.actionTaken = changeAction.key;
+            changes.actionText = changeAction.text;
             changedItems.pushObject(changes);
           }
         }
@@ -138,10 +135,16 @@ export default Ember.Mixin.create({
     }
   },
 
-  getChangeAction(/* changedAttrs, type */) {
+  undoActionTaken(changedAttrs, type) {
+    var text = Ember.String.capitalize(type);
+    if(type === 'update') {
+      let changedAttrsString = Object.keys(changedAttrs).join(', ');
+      text += ' (' + changedAttrsString + ')';
+    }
+
     return {
-      key: 'update',
-      text: 'Update'
+      key: type,
+      text: text
     };
   },
 
@@ -166,7 +169,7 @@ export default Ember.Mixin.create({
       key = 'undoStack';
     }
     var lastActionChanges = this.get(key + '.firstObject');
-    if(Ember.isPresent(lastActionChanges)) {
+    if(isPresent(lastActionChanges)) {
       var promise = this._revertActionChanges(lastActionChanges, key, toIndex);
       return promise.then((hash) => {
         var idx = hash.toIndex;
@@ -257,40 +260,44 @@ export default Ember.Mixin.create({
     if(!action) {
       action = 'update';
     }
+    
     var id = historyItem.id;
-    var type = historyItem.type;
-    var attributes = historyItem.attributes;
     var promise = this._emptyPromise();
+    var record = null;
+
+    if(isEmpty(id) && action === 'create') {
+      record = historyItem.snapshot.record;
+      id = get(record, 'id');
+      item = record;
+    }
 
     if((action === 'create' && key === 'redoStack') || (action === 'delete' && key === 'undoStack')) {
-      attributes.id = id;
-      var record = this.get('store').peekRecord('dog', id);
+      record = this.get('store').peekRecord('dog', id);
 
-      if(Ember.isPresent(record)) {
+      if(isPresent(record)) {
         record.transitionTo('loaded.saved');
       }
       else {
-        if(Ember.isPresent(id)) {
-          record = this.get('store').createRecord(type, attributes);
-          promise = record.save();
-        }
-        else {
-          historyItem.snapshot._internalModel.rollbackAttributes();
-          record = historyItem.snapshot._internalModel.record;
-          record.transitionTo('loaded.created.uncommitted');
+        this._updateInitialUndoState();
+        historyItem.snapshot._internalModel.rollbackAttributes();
+        record = historyItem.snapshot._internalModel.record;
+        record.transitionTo('loaded.created.uncommitted');
 
-          var attrs = historyItem.snapshot._attributes;
-          var attrKeys = Object.keys(attrs);
-          for(var i = 0; i < attrKeys.length; i++) {
-            var k = attrKeys[i];
-            var value = attrs[k];
-            record.set(k, value);
-          }
+        var attrs = historyItem.snapshot._attributes;
+        var attrKeys = Object.keys(attrs);
+        for(var i = 0; i < attrKeys.length; i++) {
+          var k = attrKeys[i];
+          var value = attrs[k];
+          record.set(k, value);
+        }
+
+        if(isPresent(get(record, 'id'))) {
+          record.save();
         }
       }
     }
     else {
-      if(Ember.isPresent(item)) {
+      if(isPresent(item)) {
         if(item.get('isNew')) {
           item.deleteRecord();
         }
