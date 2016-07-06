@@ -8,13 +8,14 @@ export default function() {
     let attrs = JSON.parse(request.requestBody);
     let newId = attrs.data.id;
     // Cleanup lingering id in mirage that has already been destroyed
+    // ** Have a PR out to mirage for this change **
     if(Ember.isPresent(newId)) {
       let collections = db.db._collections.filter(function(col) { return col.name === 'dogs'; });
       if(collections.length) {
         let collection = collections[0];
         let ids = collection.identityManager._ids;
         if(ids[newId]) {
-          delete collection.identityManager._ids[newId];
+          collection.identityManager._ids[newId] = false;
         }
       }
     }

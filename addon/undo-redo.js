@@ -2,11 +2,53 @@ import Ember from 'ember';
 const { on, get, set, isPresent, isEmpty } = Ember;
 
 export default Ember.Mixin.create({
+  /**
+  If this property is `true` the record is in the `undoing` state. A
+  record enters this state when attempting to revert back to a previous state.
+  The action could involve a series of promises (creates/deletes/updates) to
+  be fulfilled in order to be complete. Once complete, this property will be `false`
+  @property isUndoing
+  @type {Boolean}
+  @readOnly
+  */
   isUndoing: false,
+
+  /**
+  If this property is `true` the record is in the `redoing` state. A
+  record enters this state when attempting to revert back to a newer state.
+  The action could involve a series of promises (creates/deletes/updates) to
+  be fulfilled in order to be complete. Once complete, this property will be `false`
+  @property isRedoing
+  @type {Boolean}
+  @readOnly
+  */
   isRedoing: false,
+
+  /**
+  Undo/Redo stack limit can be assigned. A stack limit is the count of undos/redos
+  that can be assigned. If over the limit in the stack, the stack will remove older
+  copies of the changes. This property defaults to a limit of `10`
+  @property undoStackLimit
+  @type {Integer}
+  @public
+  */
   undoStackLimit: 10,
-  redoStack: Ember.A([]),
+
+  /**
+  Contains an array of changes for the object.
+  @property undoStack
+  @type {Array}
+  @public
+  */
   undoStack: Ember.A([]),
+
+  /**
+  Contains an array of changes for the object.
+  @property redoStack
+  @type {Array}
+  @public
+  */
+  redoStack: Ember.A([]),
 
   _initialUndoState: null,
   _undo_setup: on('ready', function() {
@@ -47,7 +89,7 @@ export default Ember.Mixin.create({
           }
 
           var attrs = get(this, '_initialUndoState.snapshot._attributes');
-          if(Ember.isPresent(attrs)) {
+          if(isPresent(attrs)) {
             Object.keys(attrs).forEach(function(k) {
               var value = attrs[k];
               changedAttrs[k][0] = value;
@@ -65,23 +107,23 @@ export default Ember.Mixin.create({
           changedAttrs = item.toJSON();
           item.eachRelationship(function(name, descriptor) {
             if(descriptor.kind === 'belongsTo') {
-              changedAttrs[descriptor.key] = item.get(descriptor.key);
+              changedAttrs[descriptor.key] = get(item, descriptor.key);
             }
           });
         }
 
         if(Object.keys(changedAttrs).length) {
           var changes = {
-            id: item.get('id'),
-            type: item.get('constructor.modelName'),
-            descriptor: item.get('undoDescriptor'),
+            id: get(item, 'id'),
+            type: get(item, 'constructor.modelName'),
+            descriptor: get(item, 'undoDescriptor'),
             action: actionType,
             attributes: {},
             snapshot: item._internalModel.createSnapshot()
           };
 
-          let lastUndo = this.get('undoStack.firstObject');
-          if(actionType === 'update' && Ember.isPresent(lastUndo) && lastUndo.length === 1) {
+          let lastUndo = get(this, 'undoStack.firstObject');
+          if(actionType === 'update' && isPresent(lastUndo) && lastUndo.length === 1) {
             var lastUndoObject = lastUndo[0];
             var lastSnapshotAttributes = lastUndoObject.snapshot._attributes;
             var objectKeys = Object.keys(changedAttrs);
@@ -100,7 +142,7 @@ export default Ember.Mixin.create({
               if(currentVal === lastVal) {
                 delete changedAttrs[k];
               }
-              else if(Ember.isPresent(lastVal)) {
+              else if(isPresent(lastVal)) {
                 if(Array.isArray(changedAttrs[k])) {
                   changedAttrs[k][0] = lastVal;
                 }
@@ -119,18 +161,18 @@ export default Ember.Mixin.create({
       }.bind(this));
 
       if(changedItems.length) {
-        var undo = this.get('undoStack').slice(0);
+        var undo = get(this, 'undoStack').slice(0);
         undo.unshift(changedItems);
-        this.set('undoStack', Ember.A(undo));
+        set(this, 'undoStack', Ember.A(undo));
 
-        var currentCount = this.get('undoStack.length');
-        var limit = this.get('undoStackLimit');
+        var currentCount = get(this, 'undoStack.length');
+        var limit = get(this, 'undoStackLimit');
         if(currentCount > limit) {
-          this.get('undoStack').popObject();
+          get(this, 'undoStack').popObject();
         }
 
         /* Clear redo settings if something new happened */
-        this.get('redoStack').clear();
+        get(this, 'redoStack').clear();
       }
     }
   },
@@ -139,7 +181,7 @@ export default Ember.Mixin.create({
     var text = Ember.String.capitalize(type);
     if(type === 'update') {
       let changedAttrsString = Object.keys(changedAttrs).join(', ');
-      text += ' (' + changedAttrsString + ')';
+      text += ` (${changedAttrsString})`;
     }
 
     return {
@@ -149,16 +191,16 @@ export default Ember.Mixin.create({
   },
 
   undo(index) {
-    if(this.get('isUndoing') === false) {
-      this.set('isUndoing', true);
+    if(get(this, 'isUndoing') === false) {
+      set(this, 'isUndoing', true);
       return this._popHistoryStack(index, 'undoStack');
     }
     return this._emptyPromise();
   },
 
   redo(index) {
-    if(this.get('isRedoing') === false) {
-      this.set('isRedoing', true);
+    if(get(this, 'isRedoing') === false) {
+      set(this, 'isRedoing', true);
       return this._popHistoryStack(index, 'redoStack');
     }
     return this._emptyPromise();
@@ -175,19 +217,19 @@ export default Ember.Mixin.create({
         var idx = hash.toIndex;
         var key = hash.replaceType;
         var restockKey = (key === 'undoStack') ? 'redoStack' : 'undoStack';
-        var restockStack = this.get(restockKey);
+        var restockStack = get(this, restockKey);
         restockStack = restockStack.slice(0);
         restockStack.unshift(lastActionChanges);
-        this.set(restockKey, Ember.A(restockStack));
-        this.get(key).removeObject(lastActionChanges);
+        set(this, restockKey, Ember.A(restockStack));
+        get(this, key).removeObject(lastActionChanges);
 
         if(idx > 0) {
           idx--;
           return this._popHistoryStack(idx, key);
         }
         else {
-          this.set('isUndoing', false);
-          this.set('isRedoing', false);
+          set(this, 'isUndoing', false);
+          set(this, 'isRedoing', false);
           return this._emptyPromise();
         }
       }.bind(this));
@@ -226,14 +268,14 @@ export default Ember.Mixin.create({
       }
       // UPDATES
       else {
-        if(Ember.isPresent(item)) {
+        if(isPresent(item)) {
           var numKey = (replaceType === 'redoStack') ? 1 : 0;
           var attrs = {};
 
           for(var k in attributes) {
             var value = attributes[k][numKey];
             attrs[k] = value;
-            item.set(k, value);
+            set(item, k, value);
           }
         }
       }
@@ -260,8 +302,9 @@ export default Ember.Mixin.create({
     if(!action) {
       action = 'update';
     }
-    
+
     var id = historyItem.id;
+    var type = historyItem.type;
     var promise = this._emptyPromise();
     var record = null;
 
@@ -272,7 +315,7 @@ export default Ember.Mixin.create({
     }
 
     if((action === 'create' && key === 'redoStack') || (action === 'delete' && key === 'undoStack')) {
-      record = this.get('store').peekRecord('dog', id);
+      record = this.get('store').peekRecord(type, id);
 
       if(isPresent(record)) {
         record.transitionTo('loaded.saved');
@@ -288,7 +331,7 @@ export default Ember.Mixin.create({
         for(var i = 0; i < attrKeys.length; i++) {
           var k = attrKeys[i];
           var value = attrs[k];
-          record.set(k, value);
+          set(record, k, value);
         }
 
         if(isPresent(get(record, 'id'))) {
@@ -298,11 +341,11 @@ export default Ember.Mixin.create({
     }
     else {
       if(isPresent(item)) {
-        if(item.get('isNew')) {
+        item.transitionTo('loaded.saved');
+        if(get(item, 'isNew')) {
           item.deleteRecord();
         }
         else {
-          item.transitionTo('loaded.saved');
           promise = item.destroyRecord();
         }
       }
