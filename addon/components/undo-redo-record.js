@@ -8,35 +8,10 @@ export default Ember.Component.extend({
   tagName: 'li',
   items: Ember.A(),
   index: 0,
-  defaultActionIconMap: {
-    'resize':   'expand',
-    'move':     'arrows',
-    'text':     'font',
-    'rotate':   'rotate-left',
-    'update':   'pencil',
-    'shape':    'pencil-square-o',
-    'delete':   'remove',
-    'create':   'plus'
-  },
-  actionIconMap: {},
-
-  iconMap: computed('defaultActionIconMap', 'actionIconMap', function() {
-    return Ember.merge(get(this, 'defaultActionIconMap'), get(this, 'actionIconMap'));
-  }),
 
   actionVerb: computed('items.[]', function() {
     var verb = get(this, 'items.firstObject.actionText') || 'Update';
     return Ember.String.capitalize(verb);
-  }),
-
-  actionIcon: computed('items.[]', function() {
-    var action = get(this, 'items.firstObject.actionTaken');
-    var icon = 'pencil';
-    var iconMap = get(this, 'iconMap');
-    if(iconMap[action]) {
-      icon = iconMap[action];
-    }
-    return icon;
   }),
 
   itemName: computed('items.[]', function() {

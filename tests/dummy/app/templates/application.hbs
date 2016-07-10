@@ -1,10 +1,8 @@
-<h2 id="title">Welcome to Ember Data Undo/Redo</h2>
-
-<button {{action 'dirty'}}>Make Model Dirty</button>
-<button {{action 'dirty' 'name'}}>Make Model Name Dirty</button>
-<button {{action 'dirty' 'age'}}>Make Model Age Dirty</button>
-<button {{action 'checkpoint'}}>Set Model Checkpoint</button>
-<button {{action 'destroyModel'}}>Delete Model</button>
+<div class="test-buttons">
+  <button class="blue" {{action 'dirty'}}>Make Model Dirty</button>
+  <button class="yellow" {{action 'checkpoint'}}>Set Model Checkpoint</button>
+  <button class="red" {{action 'destroyModel'}}>Delete Model</button>
+</div>
 
 <h3>Name: {{model.name}}</h3>
 <h3>Age: {{model.age}}</h3>

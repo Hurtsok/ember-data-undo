@@ -1,0 +1,72 @@
+.changes-button {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+.changes-button .buttons {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+.changes-button .buttons:after {
+  visibility: hidden;
+  display: block;
+  font-size: 0;
+  content: " ";
+  clear: both;
+  height: 0;
+}
+.changes-button button {
+  float: left;
+  position: relative;
+  margin: 0;
+  padding: 5px;
+  border: 1px solid #aaa;
+  background-color: #ddd;
+  text-transform: capitalize;
+  cursor: pointer;
+}
+.changes-button ul.dropdown-menu {
+  position: relative;
+  margin: 10px 0;
+  padding: 0;
+  width: 95%;
+}
+.changes-button ul.dropdown-menu li {
+  position: relative;
+  margin: 0;
+  padding: 0;
+  list-style-type: none;
+}
+.changes-button ul.dropdown-menu li a {
+  display: block;
+  position: relative;
+  margin: 0;
+  padding: 5px;
+  color: #666;
+  border-left: 1px solid #ddd;
+  border-right: 1px solid #ddd;
+  border-bottom: 1px solid #ddd;
+  text-decoration: none;
+}
+.changes-button ul.dropdown-menu li:first-child a {
+  border-top: 1px solid #ddd;
+}
+.changes-button ul.dropdown-menu li a:hover {
+  color: #333;
+  background-color: #ddd;
+}
+
+.test-buttons {
+  position: relative;
+  margin: 0;
+  padding: 0;
+}
+.test-buttons button {
+  display: inline-block;
+  margin: 0;
+  padding: 5px 8px;
+  cursor: pointer;
+  border: 1px solid #aaa;
+  background-color: #ddd;
+}

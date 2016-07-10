@@ -2,5 +2,8 @@
 'use strict';
 
 module.exports = {
-  name: 'ember-data-undo'
+  name: 'ember-data-undo',
+  included: function(app) {
+    app.import('vendor/style.css');
+  }
 };
