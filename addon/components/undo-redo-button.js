@@ -36,10 +36,6 @@ export default Ember.Component.extend({
     return !get(this, 'stackItems.length');
   }),
 
-  icon: computed('isUndo', function() {
-    return get(this, 'isUndo') ? 'rotate-left' : 'rotate-right';
-  }),
-
   isUndo: computed('type', function() {
     return get(this, 'type') === 'undo';
   }),
