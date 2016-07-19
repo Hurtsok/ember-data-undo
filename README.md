@@ -1,6 +1,20 @@
-# Ember-data-undo
+# Ember Data Undo
 
-This README outlines the details of collaborating on this Ember addon.
+An undo/redo mixin you can add to your Ember model.
+
+# Usage
+
+```javascript
+// app/models/dog.js
+import DS from 'ember-data';
+import UndoRedo from 'ember-data-undo/undo-redo';
+const { attr } = DS;
+
+export default DS.Model.extend(UndoRedo, {
+  name: attr('string'),
+  age: attr('string')
+});
+```
 
 ## Installation
 
