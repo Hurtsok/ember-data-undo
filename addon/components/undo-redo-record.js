@@ -23,7 +23,7 @@ export default Ember.Component.extend({
       name = descriptor;
     }
     if(count > 1) {
-      name = 'objects';
+      name = 'items';
     }
     return name;
   }),
