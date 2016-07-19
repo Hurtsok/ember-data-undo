@@ -50,11 +50,29 @@ export default Ember.Mixin.create({
   */
   redoStack: Ember.A([]),
 
+  /**
+  Contains the initial snapshot state of the object. This initial snapshot changes
+  when an object has not been saved (still in `isNew` state) but has been changed
+  through calling `checkpoint`.
+  @property _initialUndoState
+  @type {Object}
+  @private
+  */
   _initialUndoState: null,
+
+  /**
+  Initially set the state when the object loads.
+  @type {Event}
+  @event
+  */
   _undo_setup: on('ready', function() {
     this._updateInitialUndoState(-1);
   }),
 
+  /**
+  Records the initial state of the object and increments the times it has been set.
+  @private
+  */
   _updateInitialUndoState(idx) {
     if(!idx) {
       idx = parseInt(get(this, '_initialUndoState.index'));
@@ -66,6 +84,12 @@ export default Ember.Mixin.create({
     });
   },
 
+  /**
+  Record the current state of the object. Pushes the current state changes
+  to the `undoStack`.
+  @param {Object, Array} models
+  @public
+  */
   checkpoint(models) {
     var actionType = 'update';
 
@@ -177,6 +201,19 @@ export default Ember.Mixin.create({
     }
   },
 
+  /**
+  Determines the text that happens in the action.
+
+  For instance, if you have a model with a width and height. You notice the only changed
+  attributes are width/height, then you can better describe that action here as a 'resize'.
+
+  Or, if you have a model with an transparency. You notice the only changed
+  attributes are transparency, then you can better describe that action here as a 'opacity'.
+
+  @param {Object} changedAttrs
+  @param {String} type
+  @public
+  */
   undoActionTaken(changedAttrs, type) {
     var text = Ember.String.capitalize(type);
     if(type === 'update') {
@@ -190,6 +227,13 @@ export default Ember.Mixin.create({
     };
   },
 
+  /**
+  Apply changes in the `undoStack`. When index is passed as an argument, apply the
+  changes found at the index passed in. The default index is 0.
+  @param {Integer} index, default: 0
+  @return {Promise}
+  @public
+  */
   undo(index) {
     if(get(this, 'isUndoing') === false) {
       set(this, 'isUndoing', true);
@@ -198,6 +242,13 @@ export default Ember.Mixin.create({
     return this._emptyPromise();
   },
 
+  /**
+  Apply changes in the `redoStack`. When index is passed as an argument, apply the
+  changes found at the index passed in. The default index is 0.
+  @param {Integer} index, default: 0
+  @return {Promise}
+  @public
+  */
   redo(index) {
     if(get(this, 'isRedoing') === false) {
       set(this, 'isRedoing', true);
